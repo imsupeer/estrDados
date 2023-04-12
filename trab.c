@@ -2,84 +2,120 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#define MAX_EXPR_SIZE 100
+#define TAM_MAX_EXP 100
 
-// Estruturas de dados
 typedef struct stack {
-    char* items[MAX_EXPR_SIZE];
+    char* items[TAM_MAX_EXP];
     int top;
 } Stack;
 
 typedef struct queue {
-    char* items[MAX_EXPR_SIZE];
-    int front, rear;
+    char* items[TAM_MAX_EXP];
+    int front, back;
 } Queue;
 
-// Funções da pilha
-void push(Stack* stack, char* item);
-char* pop(Stack* stack);
-char* top(Stack* stack);
-
-// Funções da fila
-void enqueue(Queue* queue, char* item);
-char* dequeue(Queue* queue);
-
-// Funções auxiliares
-int is_operator(char c);
-int precedence(char c);
-int evaluate(char* expr);
-
-// Funções principais
-void infix_to_postfix(char* infix, char* postfix);
-void evaluate_postfix(char* postfix);
-
-int main() {
-    char infix[MAX_EXPR_SIZE];
-    printf("Digite a expressão: ");
-    fgets(infix, MAX_EXPR_SIZE, stdin);
-    char postfix[MAX_EXPR_SIZE];
-    infix_to_postfix(infix, postfix);
-    printf("Expressão em NPR: %s\n", postfix);
-    evaluate_postfix(postfix);
-    return 0;
-}
-
 void push(Stack* stack, char* item) {
-    // implementação
+    if (stack->top == TAM_MAX_EXP - 1) {
+        printf("Erro: Overflow!!!\n");
+        exit(1);
+    }
+    stack->top++;
+    stack->items[stack->top] = item;
 }
 
 char* pop(Stack* stack) {
-    // implementação
+    if (stack->top == -1) {
+        printf("Erro: Underflow!!!\n");
+        exit(1);
+    }
+    char* item = stack->items[stack->top];
+    stack->top--;
+    return item;
 }
 
 char* top(Stack* stack) {
-    // implementação
+    if (stack->top == -1) {
+        return NULL;
+    }
+    return stack->items[stack->top];
 }
 
 void enqueue(Queue* queue, char* item) {
-    // implementação
+    if ((queue->back + 1) % TAM_MAX_EXP == queue->front) {
+        printf("Erro: Overflow!!!\n");
+        exit(1);
+    }
+    queue->back = (queue->back + 1) % TAM_MAX_EXP;
+    queue->items[queue->back] = item;
 }
 
 char* dequeue(Queue* queue) {
-    // implementação
+    if (queue->front == queue->back) {
+        printf("Erro: Underflow!!!\n");
+        exit(1);
+    }
+    queue->front = (queue->front + 1) % TAM_MAX_EXP;
+    return queue->items[queue->front];
 }
 
 int is_operator(char c) {
-    // implementação
+    return c == '+' || c == '-' || c == '*' || c == '/';
 }
 
 int precedence(char c) {
-    // implementação
+    switch (c) {
+        case '+':
+        case '-':
+            return 1;
+        case '*':
+        case '/':
+            return 2;
+        default:
+            return 0;
+    }
 }
 
 int evaluate(char* expr) {
-    // implementação
-}
-
-void infix_to_postfix(char* infix, char* postfix) {
-    // implementação
-}
-
-void evaluate_postfix(char* postfix) {
-    // implementação
+    Stack stack;
+    stack.top = -1;
+    int i = 0;
+    while (expr[i] != '\0') {
+        if (isdigit(expr[i])) {
+            char* operand = malloc(sizeof(char) * TAM_MAX_EXP);
+            int j = 0;
+            while (isdigit(expr[i])) {
+                operand[j] = expr[i];
+                i++;
+                j++;
+            }
+            operand[j] = '\0';
+            push(&stack, operand);
+            free(operand);
+        } else if (is_operator(expr[i])) {
+            char* op1 = pop(&stack);
+            char* op2 = pop(&stack);
+            int result;
+            switch (expr[i]) {
+                case '+':
+                    result = atoi(op2) + atoi(op1);
+                    break;
+                case '-':
+                    result = atoi(op2) - atoi(op1);
+                    break;
+                case '*':
+                    result = atoi(op2) * atoi(op1);
+                    break;
+                case '/':
+                    result = atoi(op2) / atoi(op1);
+                    break;
+            }
+            char* res_str = malloc(sizeof(char) * TAM_MAX_EXP);
+            sprintf(res_str, "%d", result);
+            push(&stack, res_str);
+            free(op1);
+            free(op2);
+            free(res_str);
+        }
+    }
+    return 0;
 }
