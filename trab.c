@@ -1,121 +1,175 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
+#include <math.h>
 
-#define TAM_MAX_EXP 100
+#define MAX_EXPR_SIZE 100
 
-typedef struct stack {
-    char* items[TAM_MAX_EXP];
+typedef struct {
     int top;
+    double data[MAX_EXPR_SIZE];
 } Stack;
 
-typedef struct queue {
-    char* items[TAM_MAX_EXP];
-    int front, back;
-} Queue;
+void init(Stack *s) {
+    s->top = -1;
+}
 
-void push(Stack* stack, char* item) {
-    if (stack->top == TAM_MAX_EXP - 1) {
-        printf("Erro: Overflow!!!\n");
-        exit(1);
+int is_empty(Stack *s) {
+    return s->top == -1;
+}
+
+int is_full(Stack *s) {
+    return s->top == MAX_EXPR_SIZE - 1;
+}
+
+void push(Stack *s, double element) {
+    if (is_full(s)) {
+        printf("Erro: pilha cheia!!!\n");
+        exit(EXIT_FAILURE);
     }
-    stack->top++;
-    stack->items[stack->top] = item;
+    s->top++;
+    s->data[s->top] = element;
 }
 
-char* pop(Stack* stack) {
-    if (stack->top == -1) {
-        printf("Erro: Underflow!!!\n");
-        exit(1);
+double pop(Stack *s) {
+    if (is_empty(s)) {
+        printf("Erro: pilha vazia!!!\n");
+        exit(EXIT_FAILURE);
     }
-    char* item = stack->items[stack->top];
-    stack->top--;
-    return item;
+    double element = s->data[s->top];
+    s->top--;
+    return element;
 }
 
-char* top(Stack* stack) {
-    if (stack->top == -1) {
-        return NULL;
+double peek(Stack *s) {
+    if (is_empty(s)) {
+        printf("Erro: pilha vazia.\n");
+        exit(EXIT_FAILURE);
     }
-    return stack->items[stack->top];
+    return s->data[s->top];
 }
 
-void enqueue(Queue* queue, char* item) {
-    if ((queue->back + 1) % TAM_MAX_EXP == queue->front) {
-        printf("Erro: Overflow!!!\n");
-        exit(1);
-    }
-    queue->back = (queue->back + 1) % TAM_MAX_EXP;
-    queue->items[queue->back] = item;
-}
-
-char* dequeue(Queue* queue) {
-    if (queue->front == queue->back) {
-        printf("Erro: Underflow!!!\n");
-        exit(1);
-    }
-    queue->front = (queue->front + 1) % TAM_MAX_EXP;
-    return queue->items[queue->front];
-}
-
-int is_operator(char c) {
-    return c == '+' || c == '-' || c == '*' || c == '/';
-}
-
-int precedence(char c) {
-    switch (c) {
+int precedence(char op) {
+    switch (op) {
         case '+':
         case '-':
             return 1;
         case '*':
         case '/':
             return 2;
+        case '^':
+            return 3;
         default:
             return 0;
     }
 }
 
-int evaluate(char* expr) {
+int is_operator(char ch) {
+    return ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '^';
+}
+
+void infix_to_postfix(char infix[], char postfix[]) {
     Stack stack;
-    stack.top = -1;
-    int i = 0;
-    while (expr[i] != '\0') {
-        if (isdigit(expr[i])) {
-            char* operand = malloc(sizeof(char) * TAM_MAX_EXP);
-            int j = 0;
-            while (isdigit(expr[i])) {
-                operand[j] = expr[i];
+    init(&stack);
+
+    int i, j = 0;
+    for (i = 0; infix[i] != '\0'; i++) {
+        char ch = infix[i];
+        if (isdigit(ch)) {
+            postfix[j++] = ch;
+            while (isdigit(infix[i+1])) {
                 i++;
-                j++;
+                postfix[j++] = infix[i];
             }
-            operand[j] = '\0';
-            push(&stack, operand);
-            free(operand);
-        } else if (is_operator(expr[i])) {
-            char* op1 = pop(&stack);
-            char* op2 = pop(&stack);
-            int result;
-            switch (expr[i]) {
-                case '+':
-                    result = atoi(op2) + atoi(op1);
-                    break;
-                case '-':
-                    result = atoi(op2) - atoi(op1);
-                    break;
-                case '*':
-                    result = atoi(op2) * atoi(op1);
-                    break;
-                case '/':
-                    result = atoi(op2) / atoi(op1);
-                    break;
+            postfix[j++] = ' ';
+        } else if (ch == '(') {
+            push(&stack, ch);
+        } else if (ch == ')') {
+            while (!is_empty(&stack) && peek(&stack) != '(') {
+                postfix[j++] = pop(&stack);
+                postfix[j++] = ' ';
             }
-            char* res_str = malloc(sizeof(char) * TAM_MAX_EXP);
-            sprintf(res_str, "%d", result);
-            push(&stack, res_str);
-            free(op1);
-            free(op2);
-            free(res_str);
+            pop(&stack);
+        } else if (is_operator(ch)) {
+            while (!is_empty(&stack) && precedence(ch) <= precedence(peek(&stack))) {
+                postfix[j++] = pop(&stack);
+                postfix[j++] = ' ';
+            }
+            push(&stack, ch);
         }
     }
-    return 0;
+
+    while (!is_empty(&stack)) {
+        postfix[j++] = pop(&stack);
+        postfix[j++] = ' ';
+    }
+
+    postfix[j] = '\0';
+}
+
+double evaluate_postfix(char postfix[]) {
+    Stack stack;
+    init(&stack);
+
+    int i;
+    for (i = 0; postfix[i] != '\0'; i++) {
+        char ch = postfix[i];
+        if (isdigit(ch)) {
+            double num = ch - '0';
+            while (isdigit(postfix[i+1])) {
+                i++;
+                num = num * 10 + (postfix[i] - '0');
+            }
+            push(&stack, num);
+        } else if (ch == ' ') {
+        } else {
+            double op2 = pop(&stack);
+            double op1 = pop(&stack);
+            double result;
+            switch (ch) {
+                case '+':
+                    result = op1 + op2;
+                    break;
+                case '-':
+                    result = op1 - op2;
+                    break;
+                case '*':
+                    result = op1 * op2;
+                    break;
+                case '/':
+                    result = op1 / op2;
+                    break;
+                case '^':
+                    result = pow(op1, op2);
+                    break;
+                default:
+                    printf("Erro: operador inválido.\n");
+                    exit(EXIT_FAILURE);
+            }
+            push(&stack, result);
+        }
+    }
+
+    double result = pop(&stack);
+    if (!is_empty(&stack)) {
+        printf("Erro: expressão mal formada.\n");
+        exit(EXIT_FAILURE);
+    }
+    return result;
+}
+
+int main(){
+    char infix[MAX_EXPR_SIZE];
+    char postfix[MAX_EXPR_SIZE];
+    printf("Digite a expressão: ");
+    fgets(infix, MAX_EXPR_SIZE, stdin);
+
+    infix_to_postfix(infix, postfix);
+    printf("Expressão em NPR: %s\n", postfix);
+
+    double result = evaluate_postfix(postfix);
+    printf("Resultado: %.2lf\n", result);
+
+return 0;
 }
